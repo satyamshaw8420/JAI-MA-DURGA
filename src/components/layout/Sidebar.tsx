@@ -2,13 +2,14 @@ import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Users, Search, Settings, Building2,
   ChevronLeft, LogOut, BookOpen, CreditCard,
-  FileBarChart, Bell, X
+  FileBarChart, Bell, X, Receipt
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 
 const navItems = [
   { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
+  { path: '/create-bill', icon: Receipt, label: 'Create Bill' },
   { path: '/parties', icon: Users, label: 'Parties' },
   { path: '/ledger', icon: BookOpen, label: 'Ledger' },
   { path: '/payments', icon: CreditCard, label: 'Payments' },
@@ -62,10 +63,10 @@ export default function Sidebar({ mobileMenuOpen, setMobileMenuOpen, collapsed, 
       >
 
         {/* Logo Area + Close/Collapse */}
-        <div className="flex items-center gap-3 px-4 h-20 flex-shrink-0" style={{ justifyContent: isCollapsed ? 'center' : 'flex-start' }}>
-          <div className="w-10 h-10 flex items-center justify-center flex-shrink-0 border border-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.2)]"
-            style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', borderRadius: 0 }}>
-            <Building2 className="w-5 h-5 text-[#0B1A30]" />
+        <div className="flex items-center gap-3 px-5 h-20 flex-shrink-0" style={{ justifyContent: isCollapsed ? 'center' : 'flex-start' }}>
+          <div className="w-10 h-10 flex items-center justify-center flex-shrink-0 shadow-[0_0_15px_rgba(245,158,11,0.2)] rounded-xl"
+            style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}>
+            <Building2 className="w-5 h-5 text-white" />
           </div>
           {!isCollapsed && (
             <div className="overflow-hidden flex-1">
@@ -77,8 +78,7 @@ export default function Sidebar({ mobileMenuOpen, setMobileMenuOpen, collapsed, 
           {mobileMenuOpen && (
             <button
               onClick={() => setMobileMenuOpen?.(false)}
-              className="ml-auto p-1.5 text-slate-400 hover:text-white hover:bg-white/10 transition-colors md:hidden"
-              style={{ borderRadius: 0 }}
+              className="ml-auto p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors md:hidden"
             >
               <X className="w-5 h-5" />
             </button>
@@ -86,11 +86,10 @@ export default function Sidebar({ mobileMenuOpen, setMobileMenuOpen, collapsed, 
         </div>
 
         {/* Desktop Collapse Toggle */}
-        <div className="hidden md:flex px-4 mb-2">
+        <div className="hidden md:flex px-4 mb-4">
           <button
             onClick={() => setCollapsed?.(!collapsed)}
-            className="w-full flex items-center justify-center gap-2 py-2 text-slate-400 hover:text-white hover:bg-white/5 transition-all text-xs font-medium"
-            style={{ borderRadius: 0, border: '1px solid rgba(255,255,255,0.06)' }}
+            className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all text-[12px] font-semibold border border-white/5"
             title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             <ChevronLeft className={cn("w-4 h-4 transition-transform duration-300", collapsed && "rotate-180")} />
@@ -99,7 +98,7 @@ export default function Sidebar({ mobileMenuOpen, setMobileMenuOpen, collapsed, 
         </div>
 
         {/* Navigation Links */}
-        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-2 custom-scrollbar">
+        <nav className="flex-1 overflow-y-auto py-2 px-3 space-y-1 custom-scrollbar">
           {navItems.map(({ path, icon: Icon, label }) => {
             const isActive = path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
 
@@ -109,29 +108,31 @@ export default function Sidebar({ mobileMenuOpen, setMobileMenuOpen, collapsed, 
                 to={path}
                 onClick={() => setMobileMenuOpen?.(false)}
                 className={cn(
-                  'flex items-center gap-3 py-2.5 transition-all duration-200 text-[13px] font-medium group',
+                  'flex items-center gap-3 py-2.5 rounded-xl transition-all duration-200 text-[14px] font-semibold group relative overflow-hidden',
                   isCollapsed ? 'justify-center px-0' : 'px-4',
                   isActive
-                    ? 'bg-blue-600 text-white'
+                    ? 'text-white shadow-[0_4px_20px_rgba(0,0,0,0.1)]'
                     : 'text-slate-400 hover:bg-white/5 hover:text-white'
                 )}
-                style={{ borderRadius: 0 }}
                 title={isCollapsed ? label : undefined}
               >
-                <Icon className={cn("w-5 h-5 flex-shrink-0 transition-colors", isActive ? "text-white" : "text-slate-400 group-hover:text-white")} />
-                {!isCollapsed && <span>{label}</span>}
+                {isActive && (
+                  <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 opacity-90 z-0"></div>
+                )}
+                <Icon className={cn("w-[22px] h-[22px] flex-shrink-0 transition-colors z-10", isActive ? "text-white" : "text-slate-400 group-hover:text-white")} />
+                {!isCollapsed && <span className="z-10">{label}</span>}
               </NavLink>
             );
           })}
         </nav>
 
-        {/* User Profile Section — NO logout, NO arrow */}
-        <div className="p-3 mt-auto" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+        {/* User Profile Section */}
+        <div className="p-4 mt-auto border-t border-white/5">
           <div
-            className="flex items-center gap-3 p-2.5 transition-colors"
-            style={{ borderRadius: 0, justifyContent: isCollapsed ? 'center' : 'flex-start' }}
+            className="flex items-center gap-3 p-2 rounded-2xl hover:bg-white/5 transition-colors cursor-pointer"
+            style={{ justifyContent: isCollapsed ? 'center' : 'flex-start' }}
           >
-            <div className="w-9 h-9 bg-white text-[#0B1A30] flex items-center justify-center text-sm font-bold flex-shrink-0" style={{ borderRadius: 0 }}>
+            <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-blue-600 text-white rounded-full flex items-center justify-center text-[13px] font-bold flex-shrink-0 shadow-inner">
               {getInitials()}
             </div>
             {!isCollapsed && (

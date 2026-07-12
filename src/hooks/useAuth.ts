@@ -1,11 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import {
   signInWithPopup,
   GoogleAuthProvider,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut,
-  onAuthStateChanged,
 } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
@@ -14,36 +13,17 @@ import { useAuthStore } from '@/store/authStore';
 const googleProvider = new GoogleAuthProvider();
 
 export function useAuth() {
-  const { user, isLoading, isAuthenticated, setUser, setLoading } = useAuthStore();
+  const {
+    user,
+    isLoading,
+    isAuthenticated,
+    workspace,
+    activeWorkspaceId,
+    isWorkspaceLoading,
+    availableWorkspaces,
+    setLoading,
+  } = useAuthStore();
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        // Update user doc in Firestore
-        try {
-          await setDoc(
-            doc(db, 'users', firebaseUser.uid),
-            {
-              uid: firebaseUser.uid,
-              email: firebaseUser.email,
-              displayName: firebaseUser.displayName || '',
-              photoURL: firebaseUser.photoURL || '',
-              lastLoginAt: serverTimestamp(),
-            },
-            { merge: true }
-          );
-        } catch (e) {
-          console.warn('Failed to update user doc:', e);
-        }
-        setUser(firebaseUser);
-      } else {
-        setUser(null);
-      }
-    });
-
-    return () => unsubscribe();
-  }, [setUser]);
 
   const loginWithGoogle = useCallback(async () => {
     setError(null);
@@ -103,15 +83,31 @@ export function useAuth() {
     }
   }, []);
 
+  const updateWorkspaceAllowedEmails = useCallback(async (emails: string[]) => {
+    try {
+      if (!activeWorkspaceId) throw new Error("No active workspace to update");
+      const workspaceRef = doc(db, 'workspaces', activeWorkspaceId);
+      await setDoc(workspaceRef, { allowedEmails: emails }, { merge: true });
+    } catch (error) {
+      console.error('Failed to update workspace allowed emails:', error);
+      throw error;
+    }
+  }, [activeWorkspaceId]);
+
   return {
     user,
-    isLoading,
+    isLoading: isLoading || isWorkspaceLoading,
+    workspace,
+    activeWorkspaceId,
+    availableWorkspaces,
+    isWorkspaceLoading,
     isAuthenticated,
     error,
     loginWithGoogle,
     loginWithEmail,
     registerWithEmail,
     logout,
+    updateWorkspaceAllowedEmails,
     clearError: () => setError(null),
   };
 }

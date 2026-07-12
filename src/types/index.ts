@@ -6,6 +6,8 @@ export interface Party {
   userId: string;
   name: string;
   phone: string | null;
+  companyName: string | null;
+  gstNo: string | null;
   notes: string | null;
   isFavorite: boolean;
   totalSold: number;
@@ -20,6 +22,8 @@ export interface Party {
 export type PartyFormData = {
   name: string;
   phone: string;
+  companyName: string;
+  gstNo: string;
   notes: string;
 };
 

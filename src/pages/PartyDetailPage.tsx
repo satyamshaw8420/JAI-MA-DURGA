@@ -23,8 +23,8 @@ import dayjs from 'dayjs';
 export default function PartyDetailPage() {
   const { id: partyId } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
-  
+  const { user, activeWorkspaceId } = useAuth();
+
   // Store
   const { parties, setParties, setLoading: setPartiesLoading } = usePartyStore();
   const { columns, rows, setColumns, setRows, setLoading, isLoading } = useLedgerStore();
@@ -80,12 +80,12 @@ export default function PartyDetailPage() {
   // Subscribe to Party
   useEffect(() => {
     if (!user) return;
-    const unsub = subscribeToParties(user.uid, (data) => {
+    const unsub = subscribeToParties(activeWorkspaceId || user.uid, (data) => {
       setParties(data);
       setPartiesLoading(false);
     }, console.error);
     return unsub;
-  }, [user, setParties, setPartiesLoading]);
+  }, [user, activeWorkspaceId, setParties, setPartiesLoading]);
 
   useEffect(() => {
     const found = parties.find((p) => p.id === partyId);
@@ -100,7 +100,7 @@ export default function PartyDetailPage() {
       partyId,
       (data) => {
         if (!data.userId && user) {
-          initializeLedger(partyId, user.uid);
+          initializeLedger(partyId, activeWorkspaceId || user.uid);
           return;
         }
         setLedger(data);
@@ -120,7 +120,7 @@ export default function PartyDetailPage() {
     const w = parseFloat(formData.weight);
     const q = parseFloat(formData.quantity);
     const r = parseFloat(formData.rate);
-    
+
     if (!isNaN(r) && r > 0) {
       if (!isNaN(w) && w > 0) {
         setFormData(prev => ({ ...prev, amount: (w * r).toFixed(2) }));
@@ -135,7 +135,7 @@ export default function PartyDetailPage() {
     const w = parseFloat(editFormData.weight);
     const q = parseFloat(editFormData.quantity);
     const r = parseFloat(editFormData.rate);
-    
+
     if (!isNaN(r) && r > 0) {
       if (!isNaN(w) && w > 0) {
         setEditFormData(prev => ({ ...prev, amount: (w * r).toFixed(2) }));
@@ -273,7 +273,7 @@ export default function PartyDetailPage() {
     if (!ledger || !user || !party) return;
     if (!confirm('Are you sure you want to delete this entry?')) return;
     try {
-      await deleteRows(ledger, [rowId], user.uid, user.email || '');
+      await deleteRows(ledger, [rowId], activeWorkspaceId || user.uid, user.email || '');
       const updatedRows = ledger.rows.filter(r => r.id !== rowId);
       await syncPartyTotals(party.id, updatedRows);
       toast.success('Entry deleted');
@@ -285,7 +285,7 @@ export default function PartyDetailPage() {
   const filteredRows = useMemo(() => {
     // Hide pure payment rows (where there is no bill amount but there is a paid amount)
     let result = rows.filter(r => !((r.paid || 0) > 0 && !(r.amount || 0)));
-    
+
     if (dateFilter) {
       result = result.filter(r => r.date === dateFilter);
     }
@@ -352,8 +352,8 @@ export default function PartyDetailPage() {
             <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0 text-indigo-500 shadow-sm"><Calendar className="w-4 h-4" /></div>
             <div className="flex-1">
               <label className="block text-[11px] font-semibold text-slate-700 mb-1">Date <span className="text-red-500">*</span></label>
-              <input type="date" required value={data.date} onChange={e => setData({...data, date: e.target.value})}
-                     className="w-full h-10 px-3 rounded-lg border border-slate-200 focus:border-indigo-500 text-sm font-medium shadow-sm" />
+              <input type="date" required value={data.date} onChange={e => setData({ ...data, date: e.target.value })}
+                className="w-full h-10 px-3 rounded-lg border border-slate-200 focus:border-indigo-500 text-sm font-medium shadow-sm" />
             </div>
           </div>
           {showDesc && (
@@ -361,8 +361,8 @@ export default function PartyDetailPage() {
               <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center flex-shrink-0 text-green-500 shadow-sm"><Tags className="w-4 h-4" /></div>
               <div className="flex-1">
                 <label className="block text-[11px] font-semibold text-slate-700 mb-1">Item / Description</label>
-                <input type="text" placeholder="e.g. ms plate 120*40" value={data.itemName} onChange={e => setData({...data, itemName: e.target.value})}
-                       className="w-full h-10 px-3 rounded-lg border border-slate-200 focus:border-indigo-500 text-sm font-medium placeholder:text-slate-400 shadow-sm" />
+                <input type="text" placeholder="e.g. ms plate 120*40" value={data.itemName} onChange={e => setData({ ...data, itemName: e.target.value })}
+                  className="w-full h-10 px-3 rounded-lg border border-slate-200 focus:border-indigo-500 text-sm font-medium placeholder:text-slate-400 shadow-sm" />
               </div>
             </div>
           )}
@@ -375,8 +375,8 @@ export default function PartyDetailPage() {
               <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0 text-blue-500 shadow-sm"><Hash className="w-4 h-4" /></div>
               <div className="flex-1">
                 <label className="block text-[11px] font-semibold text-slate-700 mb-1">Quantity / Pieces</label>
-                <input type="number" step="any" placeholder="0" value={data.quantity} onChange={e => setData({...data, quantity: e.target.value})}
-                       className="w-full h-10 px-3 rounded-lg border border-slate-200 focus:border-indigo-500 text-sm font-medium shadow-sm" />
+                <input type="number" step="any" placeholder="0" value={data.quantity} onChange={e => setData({ ...data, quantity: e.target.value })}
+                  className="w-full h-10 px-3 rounded-lg border border-slate-200 focus:border-indigo-500 text-sm font-medium shadow-sm" />
               </div>
             </div>
           )}
@@ -384,16 +384,16 @@ export default function PartyDetailPage() {
             <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center flex-shrink-0 text-purple-500 shadow-sm"><Scale className="w-4 h-4" /></div>
             <div className="flex-1">
               <label className="block text-[11px] font-semibold text-slate-700 mb-1">Weight (KG)</label>
-              <input type="number" step="any" placeholder="0.00" value={data.weight} onChange={e => setData({...data, weight: e.target.value})}
-                     className="w-full h-10 px-3 rounded-lg border border-slate-200 focus:border-indigo-500 text-sm font-medium shadow-sm" />
+              <input type="number" step="any" placeholder="0.00" value={data.weight} onChange={e => setData({ ...data, weight: e.target.value })}
+                className="w-full h-10 px-3 rounded-lg border border-slate-200 focus:border-indigo-500 text-sm font-medium shadow-sm" />
             </div>
           </div>
           <div className="flex gap-3">
             <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center flex-shrink-0 text-amber-500 shadow-sm"><IndianRupee className="w-4 h-4" /></div>
             <div className="flex-1">
               <label className="block text-[11px] font-semibold text-slate-700 mb-1">Rate (₹/kg)</label>
-              <input type="number" step="any" placeholder="0.00" value={data.rate} onChange={e => setData({...data, rate: e.target.value})}
-                     className="w-full h-10 px-3 rounded-lg border border-slate-200 focus:border-indigo-500 text-sm font-medium shadow-sm" />
+              <input type="number" step="any" placeholder="0.00" value={data.rate} onChange={e => setData({ ...data, rate: e.target.value })}
+                className="w-full h-10 px-3 rounded-lg border border-slate-200 focus:border-indigo-500 text-sm font-medium shadow-sm" />
             </div>
           </div>
         </div>
@@ -406,8 +406,8 @@ export default function PartyDetailPage() {
               <label className="block text-[11px] font-semibold text-slate-700 mb-1">
                 {gstEnabled ? 'Taxable Value (₹)' : 'Total Bill (₹)'}
               </label>
-              <input type="number" step="any" placeholder="0.00" value={data.amount} onChange={e => setData({...data, amount: e.target.value})}
-                     className="w-full h-10 px-3 rounded-lg border border-rose-100 bg-rose-50/40 focus:border-rose-400 text-sm font-semibold text-slate-900 shadow-sm" />
+              <input type="number" step="any" placeholder="0.00" value={data.amount} onChange={e => setData({ ...data, amount: e.target.value })}
+                className="w-full h-10 px-3 rounded-lg border border-rose-100 bg-rose-50/40 focus:border-rose-400 text-sm font-semibold text-slate-900 shadow-sm" />
             </div>
           </div>
           <div className="flex gap-3">
@@ -417,8 +417,8 @@ export default function PartyDetailPage() {
                 <label className="block text-[11px] font-semibold text-emerald-600">Paid Amount (₹)</label>
                 {isEdit && <button type="button" onClick={() => setData((p: any) => ({ ...p, paid: p.amount }))} className="text-[9px] font-bold text-indigo-600 uppercase tracking-wide">Mark Paid</button>}
               </div>
-              <input type="number" step="any" placeholder="0.00" value={data.paid} onChange={e => setData({...data, paid: e.target.value})}
-                     className="w-full h-10 px-3 rounded-lg border-2 border-emerald-400 bg-emerald-50/50 focus:border-emerald-500 text-sm font-semibold text-emerald-800 shadow-sm" />
+              <input type="number" step="any" placeholder="0.00" value={data.paid} onChange={e => setData({ ...data, paid: e.target.value })}
+                className="w-full h-10 px-3 rounded-lg border-2 border-emerald-400 bg-emerald-50/50 focus:border-emerald-500 text-sm font-semibold text-emerald-800 shadow-sm" />
             </div>
           </div>
           <div className="flex gap-3">
@@ -432,9 +432,9 @@ export default function PartyDetailPage() {
                 if (newMode !== 'Pending' && data.paymentMode === 'Pending' && (!data.paid || parseFloat(data.paid) === 0)) {
                   updates.paid = data.amount;
                 }
-                setData({...data, ...updates});
+                setData({ ...data, ...updates });
               }}
-                      className="w-full h-10 px-3 rounded-lg border border-slate-200 focus:border-indigo-500 text-sm font-medium bg-white shadow-sm">
+                className="w-full h-10 px-3 rounded-lg border border-slate-200 focus:border-indigo-500 text-sm font-medium bg-white shadow-sm">
                 <option value="Pending">Pending (Unpaid)</option>
                 {PAYMENT_MODES.map(mode => <option key={mode} value={mode}>{mode}</option>)}
               </select>
@@ -445,8 +445,8 @@ export default function PartyDetailPage() {
               <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0 text-indigo-500 shadow-sm"><Calendar className="w-4 h-4" /></div>
               <div className="flex-1">
                 <label className="block text-[11px] font-semibold text-slate-700 mb-1">Payment Date</label>
-                <input type="date" value={data.paymentDate} onChange={e => setData({...data, paymentDate: e.target.value})}
-                       className="w-full h-10 px-3 rounded-lg border border-slate-200 focus:border-indigo-500 text-sm font-medium shadow-sm" />
+                <input type="date" value={data.paymentDate} onChange={e => setData({ ...data, paymentDate: e.target.value })}
+                  className="w-full h-10 px-3 rounded-lg border border-slate-200 focus:border-indigo-500 text-sm font-medium shadow-sm" />
               </div>
             </div>
           )}
@@ -475,8 +475,8 @@ export default function PartyDetailPage() {
           <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0 text-indigo-500 shadow-sm"><NotebookText className="w-4 h-4" /></div>
           <div className="flex-1">
             <label className="block text-[11px] font-semibold text-slate-700 mb-1">Notes (Optional)</label>
-            <input type="text" placeholder="Optional notes regarding this transaction" value={data.notes} onChange={e => setData({...data, notes: e.target.value})}
-                   className="w-full h-10 px-3 rounded-lg border border-slate-200 focus:border-indigo-500 text-sm font-medium shadow-sm" />
+            <input type="text" placeholder="Optional notes regarding this transaction" value={data.notes} onChange={e => setData({ ...data, notes: e.target.value })}
+              className="w-full h-10 px-3 rounded-lg border border-slate-200 focus:border-indigo-500 text-sm font-medium shadow-sm" />
           </div>
         </div>
       </div>
@@ -484,33 +484,38 @@ export default function PartyDetailPage() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto p-4 md:p-8 space-y-6 animate-fade-in bg-[#f8fafc] min-h-full">
-      
+    <div className="max-w-5xl mx-auto p-3 sm:p-4 md:p-8 space-y-4 sm:space-y-6 animate-fade-in bg-[#f8fafc] min-h-full">
+
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
           <button onClick={() => navigate('/parties')}
-            className="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-[#0B1A30] transition-colors shadow-sm">
+            className="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-[#0B1A30] transition-colors shadow-sm shrink-0">
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <div>
-            <h1 className="text-[24px] font-bold text-[#0B1A30] leading-tight">{party.name}</h1>
-            <p className="text-[13px] text-slate-500 font-medium flex items-center gap-2 mt-0.5">
-              {party.phone ? <span>{party.phone}</span> : <span>No phone added</span>}
-              <span className="w-1 h-1 rounded-full bg-slate-300" />
+          <div className="min-w-0">
+            <h1 className="text-[20px] sm:text-[24px] font-bold text-[#0B1A30] leading-tight truncate">{party.name}</h1>
+            <p className="text-[12px] sm:text-[13px] text-slate-500 font-medium flex items-center gap-2 mt-0.5 flex-wrap">
+              {party.phone ? <span>{party.phone}</span> : <span>No phone</span>}
+              <span className="w-1 h-1 rounded-full bg-slate-300 shrink-0" />
               <span>{rows.length} transactions</span>
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 relative">
+        {/* Action buttons — always visible, wrap on small screens */}
+        <div className="flex items-center gap-2 flex-wrap relative">
+          {/* Payment History — always shown, icon-only on very small screens */}
           <button onClick={() => setShowPaymentHistory(true)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-700 text-sm font-semibold hover:bg-indigo-100 transition-colors shadow-sm hidden sm:flex">
-            <History className="w-4 h-4" /> Payment History
+            className="flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-700 text-sm font-semibold hover:bg-indigo-100 transition-colors shadow-sm">
+            <History className="w-4 h-4" />
+            <span className="hidden xs:inline">Payment History</span>
+            <span className="xs:hidden">History</span>
           </button>
           <button onClick={() => setShowExport(!showExport)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 text-sm font-semibold hover:bg-slate-50 transition-colors shadow-sm">
-            <Download className="w-4 h-4" /> Export Ledger
+            className="flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 text-sm font-semibold hover:bg-slate-50 transition-colors shadow-sm">
+            <Download className="w-4 h-4" />
+            <span className="hidden xs:inline">Export</span>
           </button>
           {showExport && ledger && (
             <div className="absolute right-0 top-12 z-20 w-48 rounded-xl bg-white border border-slate-100 shadow-[0_10px_40px_rgba(0,0,0,0.1)] py-2">
@@ -528,84 +533,88 @@ export default function PartyDetailPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0">
-            <ShoppingBag className="w-5 h-5 text-blue-600" />
+      <div className="grid grid-cols-3 gap-2 sm:gap-4">
+        {/* Compact cards — stacked icon+label on mobile */}
+        <div className="bg-white rounded-2xl p-3 sm:p-5 border border-slate-100 shadow-sm flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+          <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0">
+            <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
           </div>
           <div>
-            <p className="text-[12px] font-bold text-slate-400 uppercase tracking-wider mb-1">Total Sold</p>
-            <p className="text-[20px] font-bold text-[#0B1A30]">{formatCurrency(computedTotals.totalSold)}</p>
+            <p className="text-[10px] sm:text-[12px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Sold</p>
+            <p className="text-[14px] sm:text-[20px] font-bold text-[#0B1A30]">{formatCurrency(computedTotals.totalSold)}</p>
           </div>
         </div>
-        <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-green-50 flex items-center justify-center flex-shrink-0">
-            <CreditCard className="w-5 h-5 text-green-600" />
+        <div className="bg-white rounded-2xl p-3 sm:p-5 border border-slate-100 shadow-sm flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+          <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-full bg-green-50 flex items-center justify-center flex-shrink-0">
+            <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
           </div>
           <div>
-            <p className="text-[12px] font-bold text-green-600/70 uppercase tracking-wider mb-1">Total Paid</p>
-            <p className="text-[20px] font-bold text-green-600">{formatCurrency(computedTotals.totalPaid)}</p>
+            <p className="text-[10px] sm:text-[12px] font-bold text-green-600/70 uppercase tracking-wider mb-0.5">Paid</p>
+            <p className="text-[14px] sm:text-[20px] font-bold text-green-600">{formatCurrency(computedTotals.totalPaid)}</p>
           </div>
         </div>
-        <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm flex items-center gap-4"
-             style={{ backgroundColor: computedTotals.totalDue > 0 ? '#fef2f2' : '#fff' }}>
-          <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0"
-               style={{ backgroundColor: computedTotals.totalDue > 0 ? '#fee2e2' : '#f1f5f9' }}>
-            <IndianRupee className="w-5 h-5" style={{ color: computedTotals.totalDue > 0 ? '#ef4444' : '#64748b' }} />
+        <div className="bg-white rounded-2xl p-3 sm:p-5 border border-slate-100 shadow-sm flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4"
+          style={{ backgroundColor: computedTotals.totalDue > 0 ? '#fef2f2' : '#fff' }}>
+          <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-full flex items-center justify-center flex-shrink-0"
+            style={{ backgroundColor: computedTotals.totalDue > 0 ? '#fee2e2' : '#f1f5f9' }}>
+            <IndianRupee className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: computedTotals.totalDue > 0 ? '#ef4444' : '#64748b' }} />
           </div>
           <div>
-            <p className="text-[12px] font-bold uppercase tracking-wider mb-1"
-               style={{ color: computedTotals.totalDue > 0 ? '#ef4444' : '#64748b' }}>Balance Due</p>
-            <p className="text-[20px] font-bold"
-               style={{ color: computedTotals.totalDue > 0 ? '#ef4444' : '#0B1A30' }}>{formatCurrency(computedTotals.totalDue)}</p>
+            <p className="text-[10px] sm:text-[12px] font-bold uppercase tracking-wider mb-0.5"
+              style={{ color: computedTotals.totalDue > 0 ? '#ef4444' : '#64748b' }}>Due</p>
+            <p className="text-[14px] sm:text-[20px] font-bold"
+              style={{ color: computedTotals.totalDue > 0 ? '#ef4444' : '#0B1A30' }}>{formatCurrency(computedTotals.totalDue)}</p>
           </div>
         </div>
       </div>
 
       {/* Main Ledger Area */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
-        
-        {/* Toolbar */}
-        <div className="px-6 py-4 border-b border-slate-100 bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <h2 className="text-base font-bold text-[#0B1A30]">Ledger History</h2>
-            <span className="px-2.5 py-0.5 rounded-full bg-white border border-slate-200 text-xs font-bold text-slate-600 shadow-sm">{filteredRows.length} entries</span>
-          </div>
 
-          <div className="flex items-center gap-3">
+        {/* Toolbar */}
+        <div className="px-3 sm:px-6 py-3 sm:py-4 border-b border-slate-100 bg-slate-50">
+          {/* Row 1: title + date filter */}
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <div className="flex items-center gap-2">
+              <h2 className="text-base font-bold text-[#0B1A30]">Ledger History</h2>
+              <span className="px-2 py-0.5 rounded-full bg-white border border-slate-200 text-xs font-bold text-slate-600 shadow-sm">{filteredRows.length}</span>
+            </div>
             <div className="relative flex items-center">
-              <Filter className="w-4 h-4 text-slate-400 absolute left-3 pointer-events-none" />
-              <input 
+              <Filter className="w-4 h-4 text-slate-400 absolute left-2.5 pointer-events-none" />
+              <input
                 type="date"
                 value={dateFilter}
                 onChange={(e) => setDateFilter(e.target.value)}
-                style={{ paddingLeft: '36px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '8px', borderRadius: 0, border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--foreground)', fontSize: '13px', outline: 'none' }}
+                className="h-9 text-xs rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)] outline-none"
+                style={{ paddingLeft: '30px', paddingRight: dateFilter ? '28px' : '8px' }}
               />
               {dateFilter && (
                 <button onClick={() => setDateFilter('')} className="absolute right-2 bg-transparent border-none cursor-pointer">
-                  <X className="w-4 h-4 text-slate-400 hover:text-red-500" />
+                  <X className="w-3.5 h-3.5 text-slate-400 hover:text-red-500" />
                 </button>
               )}
             </div>
-            
-            <button 
+          </div>
+          {/* Row 2: action buttons — full width, stacked layout on mobile */}
+          <div className="flex gap-2">
+            <button
               onClick={() => {
                 setIsAddingPayment(!isAddingPayment);
                 setIsAdding(false);
                 if (!isAddingPayment) {
-                  setFormData({ ...formData, paymentMode: 'NEFT' }); // default to NEFT for quick payments
+                  setFormData({ ...formData, paymentMode: 'NEFT' });
                 }
               }}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors shadow-md">
+              className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors shadow-md">
               {isAddingPayment ? <X className="w-4 h-4" /> : <HandCoins className="w-4 h-4" />}
               {isAddingPayment ? 'Cancel' : 'Receive Payment'}
             </button>
-            <button 
+            <button
               onClick={() => {
                 setIsAdding(!isAdding);
                 setIsAddingPayment(false);
               }}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#0B1A30] text-white text-sm font-semibold hover:bg-[#0f2342] transition-colors shadow-md">
+              className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-[#0B1A30] text-white text-sm font-semibold hover:bg-[#0f2342] transition-colors shadow-md">
               {isAdding ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
               {isAdding ? 'Cancel' : 'Add New Entry'}
             </button>
@@ -622,34 +631,34 @@ export default function PartyDetailPage() {
               <p className="text-xs text-emerald-600/70 mt-1">Add a payment (NEFT, Cheque, Cash) to deduct from the party's outstanding balance.</p>
             </div>
             <form onSubmit={handleAddEntry} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-700 mb-1">Date</label>
-                  <input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})}
-                         className="w-full h-10 px-3 rounded-lg border border-slate-200 focus:border-indigo-500 text-sm font-medium shadow-sm" required />
+                  <input type="date" value={formData.date} onChange={e => setFormData({ ...formData, date: e.target.value })}
+                    className="w-full h-10 px-3 rounded-lg border border-slate-200 focus:border-indigo-500 text-sm font-medium shadow-sm" required />
                 </div>
                 <div>
                   <label className="block text-[11px] font-semibold text-emerald-700 mb-1">Amount Received (₹)</label>
-                  <input type="number" step="any" placeholder="0.00" value={formData.paid} onChange={e => setFormData({...formData, paid: e.target.value})}
-                         className="w-full h-10 px-3 rounded-lg border-2 border-emerald-400 bg-emerald-50/50 focus:border-emerald-500 text-sm font-bold text-emerald-800 shadow-sm" required />
+                  <input type="number" step="any" placeholder="0.00" value={formData.paid} onChange={e => setFormData({ ...formData, paid: e.target.value })}
+                    className="w-full h-10 px-3 rounded-lg border-2 border-emerald-400 bg-emerald-50/50 focus:border-emerald-500 text-sm font-bold text-emerald-800 shadow-sm" required />
                 </div>
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-700 mb-1">Payment Mode</label>
-                  <select value={formData.paymentMode} onChange={e => setFormData({...formData, paymentMode: e.target.value})}
-                          className="w-full h-10 px-3 rounded-lg border border-slate-200 focus:border-indigo-500 text-sm font-medium bg-white shadow-sm" required>
+                  <select value={formData.paymentMode} onChange={e => setFormData({ ...formData, paymentMode: e.target.value })}
+                    className="w-full h-10 px-3 rounded-lg border border-slate-200 focus:border-indigo-500 text-sm font-medium bg-white shadow-sm" required>
                     {PAYMENT_MODES.map(mode => <option key={mode} value={mode}>{mode}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-700 mb-1">Payment Date</label>
-                  <input type="date" value={formData.paymentDate} onChange={e => setFormData({...formData, paymentDate: e.target.value})}
-                         className="w-full h-10 px-3 rounded-lg border border-slate-200 focus:border-indigo-500 text-sm font-medium shadow-sm" required />
+                  <input type="date" value={formData.paymentDate} onChange={e => setFormData({ ...formData, paymentDate: e.target.value })}
+                    className="w-full h-10 px-3 rounded-lg border border-slate-200 focus:border-indigo-500 text-sm font-medium shadow-sm" required />
                 </div>
               </div>
               <div>
                 <label className="block text-[11px] font-semibold text-slate-700 mb-1">Reference / Notes (Optional)</label>
-                <input type="text" placeholder="e.g. NEFT UTR or Cheque Number" value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})}
-                       className="w-full h-10 px-3 rounded-lg border border-slate-200 focus:border-indigo-500 text-sm font-medium shadow-sm" />
+                <input type="text" placeholder="e.g. NEFT UTR or Cheque Number" value={formData.notes} onChange={e => setFormData({ ...formData, notes: e.target.value })}
+                  className="w-full h-10 px-3 rounded-lg border border-slate-200 focus:border-indigo-500 text-sm font-medium shadow-sm" />
               </div>
               <div className="pt-2 flex justify-end">
                 <button type="submit" className="px-5 py-2.5 rounded-lg bg-emerald-600 text-white font-semibold text-sm hover:bg-emerald-700 transition-colors shadow-sm flex items-center gap-2">
@@ -671,7 +680,7 @@ export default function PartyDetailPage() {
               {renderFormFields(formData, setFormData, false, addShowDesc, setAddShowDesc, addShowQty, setAddShowQty, addGstEnabled, setAddGstEnabled)}
               <div className="pt-6 flex justify-end">
                 <button type="submit"
-                        className="px-6 py-3 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 transition-colors shadow-md shadow-blue-600/20 flex items-center gap-2">
+                  className="px-6 py-3 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 transition-colors shadow-md shadow-blue-600/20 flex items-center gap-2">
                   <Check className="w-4 h-4" /> Save Ledger Entry
                 </button>
               </div>
@@ -694,8 +703,8 @@ export default function PartyDetailPage() {
           ) : (
             <div className="divide-y divide-slate-100">
               {filteredRows.map((row) => (
-                <div key={row.id} className="p-4 sm:p-5 hover:bg-slate-50/50 transition-colors flex flex-col sm:flex-row sm:items-center gap-4 relative group">
-                  
+                <div key={row.id} className="p-3 sm:p-5 hover:bg-slate-50/50 transition-colors flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 relative group">
+
                   {/* Date & Icon */}
                   <div className="flex items-center gap-4 sm:w-[140px] flex-shrink-0">
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${(row.paid || 0) > 0 && !(row.amount || 0) ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600'}`}>
@@ -730,7 +739,7 @@ export default function PartyDetailPage() {
                   </div>
 
                   {/* Amounts */}
-                  <div className="flex items-center gap-6 sm:w-[320px] justify-between sm:justify-end shrink-0">
+                  <div className="flex items-center gap-3 sm:gap-6 sm:w-[320px] justify-between sm:justify-end shrink-0">
                     <div className="text-right">
                       <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Bill</p>
                       <p className="text-[14px] font-bold text-slate-900">{row.amount ? formatCurrency(row.amount) : '—'}</p>
@@ -741,20 +750,22 @@ export default function PartyDetailPage() {
                     </div>
                     <div className="text-right w-[80px]">
                       <p className="text-[11px] font-bold text-red-400 uppercase tracking-wider mb-0.5">Due</p>
-                      <p className="text-[14px] font-bold text-red-500">{row.due ? formatCurrency(row.due) : '—'}</p>
+                      <p className="text-[14px] font-bold text-red-500">
+                        {((row.paid || 0) > 0 && !(row.amount || 0)) ? <span className="text-slate-300">—</span> : row.due ? formatCurrency(row.due) : <span className="text-slate-300">—</span>}
+                      </p>
                     </div>
                   </div>
 
                   {/* Actions (Pencil Edit and Trash Delete) */}
                   <div className="flex items-center gap-1 pl-4 border-l border-slate-100 sm:w-[90px] justify-end opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                     <button onClick={() => handleOpenEdit(row)}
-                            className="p-2 rounded-lg text-slate-400 hover:bg-white hover:text-blue-600 hover:shadow-sm border border-transparent hover:border-slate-200 transition-all"
-                            title="Edit Entry">
+                      className="p-2 rounded-lg text-slate-400 hover:bg-white hover:text-blue-600 hover:shadow-sm border border-transparent hover:border-slate-200 transition-all"
+                      title="Edit Entry">
                       <Edit2 className="w-4 h-4" />
                     </button>
                     <button onClick={() => handleDeleteRow(row.id)}
-                            className="p-2 rounded-lg text-slate-400 hover:bg-white hover:text-red-500 hover:shadow-sm border border-transparent hover:border-red-100 transition-all"
-                            title="Delete Entry">
+                      className="p-2 rounded-lg text-slate-400 hover:bg-white hover:text-red-500 hover:shadow-sm border border-transparent hover:border-red-100 transition-all"
+                      title="Delete Entry">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
@@ -774,16 +785,16 @@ export default function PartyDetailPage() {
           onClick={() => setEditingRow(null)}>
           <div className="w-full max-w-4xl rounded-2xl p-4 sm:p-6 md:p-8 bg-white shadow-2xl animate-slide-up my-auto"
             onClick={(e) => e.stopPropagation()}>
-            
+
             <div className="flex items-start justify-between mb-6 sm:mb-8 pb-4 sm:pb-6 border-b border-slate-100">
               <div className="flex items-center gap-3 sm:gap-4">
-                 <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-indigo-50 text-indigo-500 flex items-center justify-center shrink-0">
-                    <Edit2 className="w-4 h-4 sm:w-5 sm:h-5" />
-                 </div>
-                 <div>
-                   <h3 className="text-lg sm:text-xl font-bold text-slate-800 leading-tight">Edit Ledger Entry</h3>
-                   <p className="text-xs sm:text-sm text-slate-500 mt-0.5 sm:mt-1">Update the details of this transaction</p>
-                 </div>
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-indigo-50 text-indigo-500 flex items-center justify-center shrink-0">
+                  <Edit2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg sm:text-xl font-bold text-slate-800 leading-tight">Edit Ledger Entry</h3>
+                  <p className="text-xs sm:text-sm text-slate-500 mt-0.5 sm:mt-1">Update the details of this transaction</p>
+                </div>
               </div>
               <button onClick={() => setEditingRow(null)} className="p-1.5 sm:p-2 rounded-lg text-slate-400 hover:bg-slate-100 transition-colors shrink-0">
                 <X className="w-5 h-5" />
@@ -821,7 +832,7 @@ export default function PartyDetailPage() {
                 <X className="w-4 h-4" />
               </button>
             </div>
-            
+
             <div className="p-6 overflow-y-auto flex-1 bg-slate-50/30">
               {!ledger || ledger.rows.filter(r => r.paid && r.paid > 0).length === 0 ? (
                 <div className="text-center py-10">
@@ -854,7 +865,7 @@ export default function PartyDetailPage() {
                 </div>
               )}
             </div>
-            
+
             <div className="px-6 py-4 border-t border-slate-100 bg-white rounded-b-2xl flex justify-between items-center">
               <div>
                 <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Total Received</p>

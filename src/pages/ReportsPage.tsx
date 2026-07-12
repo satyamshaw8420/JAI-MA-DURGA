@@ -8,7 +8,7 @@ import { FileBarChart, FileSpreadsheet, FileText, ArrowRight, TrendingUp, AlertC
 import dayjs from 'dayjs';
 
 export default function ReportsPage() {
-  const { user } = useAuth();
+  const { user, activeWorkspaceId } = useAuth();
   const [parties, setParties] = useState<Party[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -17,7 +17,7 @@ export default function ReportsPage() {
     setLoading(true);
 
     const unsub = subscribeToParties(
-      user.uid,
+      activeWorkspaceId || user.uid,
       (data) => {
         setParties(data);
         setLoading(false);
@@ -29,7 +29,7 @@ export default function ReportsPage() {
     );
 
     return () => unsub();
-  }, [user]);
+  }, [user, activeWorkspaceId]);
 
   const dueParties = parties.filter(p => p.totalDue > 0).sort((a, b) => b.totalDue - a.totalDue);
   const totalOutstanding = parties.reduce((sum, p) => sum + p.totalDue, 0);
@@ -57,7 +57,7 @@ export default function ReportsPage() {
 
   return (
     <div className="p-4 md:p-6 lg:p-8 animate-fade-in" style={{ maxWidth: '1400px', margin: '0 auto' }}>
-      
+
       {/* Title */}
       <div style={{ marginBottom: '24px' }}>
         <h1 style={{ color: 'var(--foreground)', fontSize: '22px', fontWeight: 800, letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -70,7 +70,7 @@ export default function ReportsPage() {
 
       {/* Bento Grid: Summary Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginBottom: '32px' }}>
-        
+
         {/* Outstanding summary card */}
         <div style={{ ...cardStyle, borderLeft: '4px solid #dc2626' }} className="p-6 relative overflow-hidden group">
           <p style={{ color: 'var(--muted-foreground)', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Total Active Receivables</p>
@@ -109,7 +109,7 @@ export default function ReportsPage() {
       {/* Primary Report Generators Grid */}
       <h2 style={{ color: 'var(--foreground)', fontSize: '16px', fontWeight: 800, marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Report Templates</h2>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px', marginBottom: '32px' }} className="md:grid-cols-2">
-        
+
         {/* PDF Outstanding Report */}
         <div style={cardStyle} className="p-6 flex flex-col justify-between">
           <div>
@@ -187,7 +187,7 @@ export default function ReportsPage() {
               <tbody>
                 {dueParties.map((party) => {
                   const payRatio = party.totalSold ? (party.totalPaid / party.totalSold) * 100 : 0;
-                  
+
                   return (
                     <tr key={party.id} className="border-b border-[var(--border)] hover:bg-slate-50 transition-colors">
                       <td className="p-3 text-xs font-bold text-slate-900">{party.name}</td>

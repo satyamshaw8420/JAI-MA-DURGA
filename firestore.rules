@@ -1,0 +1,50 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function canAccessWorkspace(workspaceId) {
+      return workspaceId == request.auth.uid || 
+             (exists(/databases/$(database)/documents/workspaces/$(workspaceId)) &&
+              (get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUid == request.auth.uid || 
+               (request.auth.token.email != null && request.auth.token.email.lower() in get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.allowedEmails)
+              )
+             ); 
+    }
+
+    // Users collection: each user can read/write their own doc
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Workspaces collection: any authenticated user can read (to check if they're whitelisted)
+    // Only the owner or whitelisted members can write
+    match /workspaces/{workspaceId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null && (
+        resource.data.ownerUid == request.auth.uid ||
+        (request.auth.token.email != null && request.auth.token.email.lower() in resource.data.allowedEmails)
+      );
+    }
+
+    // Parties collection: owner and whitelisted workspace members can read/write
+    match /parties/{partyId} {
+      allow read, update, delete: if request.auth != null && canAccessWorkspace(resource.data.userId);
+      allow create: if request.auth != null && canAccessWorkspace(request.resource.data.userId);
+    }
+
+    // Ledgers collection: owner and whitelisted workspace members can read/write
+    match /ledgers/{ledgerId} {
+      allow read, update, delete: if request.auth != null && canAccessWorkspace(resource.data.userId);
+      allow create: if request.auth != null && canAccessWorkspace(request.resource.data.userId);
+    }
+
+    // Audit logs: any authenticated user can create, query restricted by userId (workspaceId)
+    match /audit_logs/{logId} {
+      allow read: if request.auth != null && canAccessWorkspace(resource.data.userId);
+      allow create: if request.auth != null && canAccessWorkspace(request.resource.data.userId);
+      allow update, delete: if false; // Audit logs should never be modified or deleted
+    }
+  }
+}
+

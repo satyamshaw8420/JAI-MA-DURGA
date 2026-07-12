@@ -34,18 +34,18 @@ function highlight(text: string, query: string): React.ReactNode {
 }
 
 const SOURCE_LABELS: Record<MatchSource, { label: string; color: string; bg: string }> = {
-  party_name:  { label: 'Name',        color: '#1d4ed8', bg: '#dbeafe' },
-  party_phone: { label: 'Phone',       color: '#6d28d9', bg: '#ede9fe' },
-  item:        { label: 'Item',        color: '#0f766e', bg: '#ccfbf1' },
-  amount:      { label: 'Sale Amt',    color: '#b45309', bg: '#fef3c7' },
-  paid:        { label: 'Paid Amt',    color: '#15803d', bg: '#dcfce7' },
-  notes:       { label: 'Notes',       color: '#475569', bg: '#f1f5f9' },
-  size:        { label: 'Size',        color: '#0369a1', bg: '#e0f2fe' },
-  mode:        { label: 'Pay Mode',    color: '#7c3aed', bg: '#f5f3ff' },
+  party_name: { label: 'Name', color: '#1d4ed8', bg: '#dbeafe' },
+  party_phone: { label: 'Phone', color: '#6d28d9', bg: '#ede9fe' },
+  item: { label: 'Item', color: '#0f766e', bg: '#ccfbf1' },
+  amount: { label: 'Sale Amt', color: '#b45309', bg: '#fef3c7' },
+  paid: { label: 'Paid Amt', color: '#15803d', bg: '#dcfce7' },
+  notes: { label: 'Notes', color: '#475569', bg: '#f1f5f9' },
+  size: { label: 'Size', color: '#0369a1', bg: '#e0f2fe' },
+  mode: { label: 'Pay Mode', color: '#7c3aed', bg: '#f5f3ff' },
 };
 
 export default function SearchPage() {
-  const { user } = useAuth();
+  const { user, activeWorkspaceId } = useAuth();
   const { parties, setParties, setLoading, addRecentPartyId } = usePartyStore();
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
@@ -56,21 +56,21 @@ export default function SearchPage() {
   useEffect(() => {
     if (!user) return;
     const unsub = subscribeToParties(
-      user.uid,
+      activeWorkspaceId || user.uid,
       (data) => { setParties(data); setLoading(false); },
       console.error
     );
     return unsub;
-  }, [user, setParties, setLoading]);
+  }, [user, activeWorkspaceId, setParties, setLoading]);
 
   // Fetch all ledgers once
   useEffect(() => {
     if (!user) return;
     setLedgersLoading(true);
-    getAllLedgersForUser(user.uid)
+    getAllLedgersForUser(activeWorkspaceId || user.uid)
       .then(data => { setLedgers(data); setLedgersLoading(false); })
       .catch(() => setLedgersLoading(false));
-  }, [user]);
+  }, [user, activeWorkspaceId]);
 
   // Focus input on mount
   useEffect(() => { inputRef.current?.focus(); }, []);
@@ -273,7 +273,7 @@ export default function SearchPage() {
 
           {results.map(result => (
             <div key={result.party.id} style={cardStyle}>
-              
+
               {/* Party Header Row */}
               <div
                 onClick={() => { addRecentPartyId(result.party.id); navigate(`/parties/${result.party.id}`); }}

@@ -226,8 +226,22 @@ body {
   animation: slideInRight 0.4s ease-out forwards;
 }
 
-.animate-count-up {
-  animation: countUp 0.6s ease-out forwards;
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-slide-down {
+  animation: slideDown 0.25s ease-out forwards;
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.25s ease-out forwards;
 }
 
 /* Staggered children */
@@ -294,6 +308,14 @@ body {
 
 @media (min-width: 641px) {
   .hide-desktop { display: none !important; }
+}
+
+/* xs breakpoint = 480px (between mobile and sm) */
+@media (max-width: 479px) {
+  .xs\:hidden { display: none !important; }
+}
+@media (min-width: 480px) {
+  .xs\:inline { display: inline !important; }
 }
 
 /* Bottom nav safe area */
@@ -1021,4 +1043,53 @@ body {
   animation: wave 2.5s infinite;
   display: inline-block;
   transform-origin: 70% 70%;
+}
+
+/* ── Print / Save as PDF ──────────────────────────────────────────────────── */
+@media print {
+  /* A4, zero margins — the invoice has its own padding built in */
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+
+  /* Hide EVERYTHING on the page */
+  body * {
+    visibility: hidden !important;
+  }
+
+  /* Show ONLY the invoice container and all its children */
+  #invoice-print-root,
+  #invoice-print-root * {
+    visibility: visible !important;
+  }
+
+  /* Position the print container at the top left of the page flow */
+  #invoice-print-root {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 794px !important;
+    z-index: 99999 !important;
+    background: white !important;
+  }
+
+  /* Each invoice copy renders as a separate A4 page */
+  .print-page {
+    width: 794px !important;
+    height: 1123px !important;
+    page-break-after: always !important;
+    page-break-inside: avoid !important;
+    box-sizing: border-box !important;
+  }
+
+  .print-page:last-child {
+    page-break-after: avoid !important;
+  }
+
+  /* Force colors to print (browsers suppress backgrounds by default) */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
 }

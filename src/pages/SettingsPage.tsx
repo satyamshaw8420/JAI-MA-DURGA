@@ -1,7 +1,10 @@
 import { useAuth } from '@/hooks/useAuth';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
-import { LogOut, User, Wifi, WifiOff, Moon, Sun, Monitor, Info, Shield, Smartphone } from 'lucide-react';
+import { LogOut, User, Wifi, WifiOff, Moon, Sun, Monitor, Info, Shield, Smartphone, Users, UserPlus, Trash2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { db } from '@/lib/firebase';
+import { doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { toast } from 'sonner';
 
 /* Hover shadow CSS — injected once via useEffect */
 const SETTINGS_HOVER_CSS = `
@@ -23,8 +26,68 @@ const SETTINGS_HOVER_CSS = `
 }
 `;
 
+import { useAuthStore } from '@/store/authStore';
+
 export default function SettingsPage() {
-  const { user, logout } = useAuth();
+  const { user, logout, workspace, availableWorkspaces, activeWorkspaceId } = useAuth();
+  const { setActiveWorkspaceId } = useAuthStore();
+  const [newEmail, setNewEmail] = useState('');
+  const [isAddingEmail, setIsAddingEmail] = useState(false);
+
+  const isWorkspaceOwner = workspace?.ownerUid === user?.uid;
+
+  const handleAddEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newEmail.trim() || !user || !workspace) return;
+    
+    const emailToAdd = newEmail.trim().toLowerCase();
+    
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailToAdd)) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+
+    const currentEmails = workspace.allowedEmails || [];
+    if (currentEmails.map(e => e.toLowerCase()).includes(emailToAdd)) {
+      toast.error('Email is already whitelisted');
+      return;
+    }
+
+    if (emailToAdd === workspace.ownerEmail.toLowerCase()) {
+      toast.error('Owner email is whitelisted by default');
+      return;
+    }
+
+    setIsAddingEmail(true);
+    try {
+      await updateDoc(doc(db, 'workspaces', workspace.id), {
+        allowedEmails: arrayUnion(emailToAdd)
+      });
+      toast.success('Email added to whitelist');
+      setNewEmail('');
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to whitelist email. Check permissions.');
+    } finally {
+      setIsAddingEmail(false);
+    }
+  };
+
+  const handleRemoveEmail = async (email: string) => {
+    if (!user || !workspace) return;
+    if (!confirm(`Revoke access for ${email}?`)) return;
+
+    try {
+      await updateDoc(doc(db, 'workspaces', workspace.id), {
+        allowedEmails: arrayRemove(email)
+      });
+      toast.success('Access revoked successfully');
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to revoke access.');
+    }
+  };
+
   const isOnline = useOnlineStatus();
   const [theme, setTheme] = useState<'light' | 'dark' | 'system'>(() => {
     return (localStorage.getItem('theme') as 'light' | 'dark' | 'system') || 'light';
@@ -196,7 +259,190 @@ export default function SettingsPage() {
               </div>
             </div>
           </div>
-        </div>
+
+          {/* Workspace Access Management */}
+          <div className="settings-card" style={cardStyle}>
+            <div style={headerStyle}>
+              <Users className="w-4 h-4" /> Workspace Access Control
+            </div>
+            <div style={bodyStyle}>
+              <div style={{ marginBottom: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Workspace: {workspace?.name || 'Loading...'}
+                  </span>
+                  <span style={{
+                    padding: '2px 8px', fontSize: '9px', fontWeight: 700,
+                    textTransform: 'uppercase', letterSpacing: '0.1em',
+                    background: isWorkspaceOwner ? '#dcfce7' : '#f1f5f9',
+                    color: isWorkspaceOwner ? '#15803d' : '#475569',
+                    border: `1px solid ${isWorkspaceOwner ? '#86efac' : '#cbd5e1'}`,
+                  }}>
+                    {isWorkspaceOwner ? 'Owner Mode' : 'Guest Mode'}
+                  </span>
+                </div>
+                <p style={{ color: 'var(--muted-foreground)', fontSize: '12px', lineHeight: 1.4 }}>
+                  {isWorkspaceOwner
+                    ? 'Whitelist team members to allow them to access your business workspace using their own Google accounts.'
+                    : `You are accessing the shared business workspace owned by ${workspace?.ownerEmail}.`}
+                </p>
+              </div>
+
+              {isWorkspaceOwner && (
+                <form onSubmit={handleAddEmail} style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+                  <input
+                    type="email"
+                    placeholder="team.member@gmail.com"
+                    value={newEmail}
+                    onChange={e => setNewEmail(e.target.value)}
+                    disabled={isAddingEmail}
+                    required
+                    style={{
+                      flex: 1,
+                      padding: '8px 12px',
+                      background: 'var(--background)',
+                      border: '1px solid var(--border)',
+                      color: 'var(--foreground)',
+                      fontSize: '13px',
+                      outline: 'none',
+                    }}
+                  />
+                  <button
+                    type="submit"
+                    disabled={isAddingEmail}
+                    style={{
+                      padding: '8px 16px',
+                      background: '#1e3a5f',
+                      color: '#ffffff',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em',
+                      border: 'none',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                    }}
+                  >
+                    <UserPlus className="w-3.5 h-3.5" /> Whitelist
+                  </button>
+                </form>
+              )}
+
+              <div>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '8px' }}>
+                  Whitelisted Accounts ({workspace?.allowedEmails?.length || 0})
+                </span>
+                
+                {(!workspace?.allowedEmails || workspace.allowedEmails.length === 0) ? (
+                  <p style={{ color: 'var(--muted-foreground)', fontSize: '12px', fontStyle: 'italic', padding: '8px 0' }}>
+                    No team members have been whitelisted yet.
+                  </p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {workspace.allowedEmails.map(email => (
+                      <div key={email} style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '8px 12px',
+                        background: 'var(--background)',
+                        border: '1px solid var(--border)',
+                      }}>
+                        <span style={{ color: 'var(--foreground)', fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {email}
+                        </span>
+                        {email.toLowerCase() === workspace?.ownerEmail?.toLowerCase() ? (
+                          <span style={{
+                            fontSize: '9px',
+                            fontWeight: 700,
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.05em',
+                            padding: '2px 6px',
+                            background: '#eff6ff',
+                            color: '#1d4ed8',
+                            border: '1px solid #bfdbfe'
+                          }}>
+                            Owner
+                          </span>
+                        ) : (
+                          isWorkspaceOwner && (
+                            <button
+                              onClick={() => handleRemoveEmail(email)}
+                              style={{
+                                background: 'transparent',
+                                border: 'none',
+                                color: '#ef4444',
+                                cursor: 'pointer',
+                                padding: '2px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
+                              title="Revoke access"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Switch Workspace */}
+          {availableWorkspaces && availableWorkspaces.length > 1 && (
+            <div className="settings-card" style={cardStyle}>
+              <div style={headerStyle}>
+                <Users className="w-4 h-4" /> Switch Workspace
+              </div>
+              <div style={bodyStyle}>
+                <p style={{ color: 'var(--muted-foreground)', fontSize: '12px', lineHeight: 1.4, marginBottom: '12px' }}>
+                  You have access to multiple workspaces. Select a workspace to view its data.
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {availableWorkspaces.map(ws => (
+                    <button
+                      key={ws.id}
+                      onClick={() => {
+                        setActiveWorkspaceId(ws.id);
+                        localStorage.setItem('activeWorkspaceId', ws.id);
+                        toast.success(`Switched to ${ws.name}`);
+                      }}
+                      style={{
+                        padding: '12px',
+                        background: activeWorkspaceId === ws.id ? '#eff6ff' : 'var(--background)',
+                        border: `1px solid ${activeWorkspaceId === ws.id ? '#bfdbfe' : 'var(--border)'}`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        cursor: activeWorkspaceId === ws.id ? 'default' : 'pointer',
+                        textAlign: 'left'
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: 600, color: activeWorkspaceId === ws.id ? '#1e3a8a' : 'var(--foreground)' }}>
+                          {ws.name}
+                        </div>
+                        <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>
+                          Owned by {ws.ownerEmail}
+                        </div>
+                      </div>
+                      {activeWorkspaceId === ws.id && (
+                        <span style={{ fontSize: '10px', fontWeight: 700, color: '#2563eb', textTransform: 'uppercase' }}>Active</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          </div>
 
         {/* ——— RIGHT COLUMN ——— */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>

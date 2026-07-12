@@ -42,6 +42,8 @@ export function subscribeToParties(
           userId: data.userId,
           name: data.name,
           phone: data.phone || null,
+          companyName: data.companyName || null,
+          gstNo: data.gstNo || null,
           notes: data.notes || null,
           isFavorite: data.isFavorite || false,
           totalSold: data.totalSold || 0,
@@ -74,6 +76,8 @@ export async function addParty(
     userId,
     name: data.name.trim(),
     phone: data.phone?.trim() || null,
+    companyName: data.companyName?.trim() || null,
+    gstNo: data.gstNo?.trim() || null,
     notes: data.notes?.trim() || null,
     isFavorite: false,
     totalSold: 0,
@@ -116,6 +120,8 @@ export async function updateParty(
 
   if (data.name) updateData.name = data.name.trim();
   if (data.phone !== undefined) updateData.phone = data.phone?.trim() || null;
+  if (data.companyName !== undefined) updateData.companyName = data.companyName?.trim() || null;
+  if (data.gstNo !== undefined) updateData.gstNo = data.gstNo?.trim() || null;
   if (data.notes !== undefined) updateData.notes = data.notes?.trim() || null;
 
   await updateDoc(doc(db, COLLECTION, partyId), updateData);

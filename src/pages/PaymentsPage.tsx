@@ -14,7 +14,7 @@ interface UnifiedPaymentRow extends LedgerRow {
 }
 
 export default function PaymentsPage() {
-  const { user } = useAuth();
+  const { user, activeWorkspaceId } = useAuth();
   const navigate = useNavigate();
   const [parties, setParties] = useState<Party[]>([]);
   const [ledgers, setLedgers] = useState<Ledger[]>([]);
@@ -30,10 +30,10 @@ export default function PaymentsPage() {
     setLoading(true);
 
     const unsub = subscribeToParties(
-      user.uid,
+      activeWorkspaceId || user.uid,
       (partiesData) => {
         setParties(partiesData);
-        getAllLedgersForUser(user.uid).then(ledgersData => {
+        getAllLedgersForUser(activeWorkspaceId || user.uid).then(ledgersData => {
           setLedgers(ledgersData);
           setLoading(false);
         }).catch(err => {
@@ -48,7 +48,7 @@ export default function PaymentsPage() {
     );
 
     return () => unsub();
-  }, [user]);
+  }, [user, activeWorkspaceId]);
 
   // Flatten and filter for ONLY payment entries (paid > 0)
   const allPayments: UnifiedPaymentRow[] = ledgers.flatMap(ledger => {
@@ -64,7 +64,7 @@ export default function PaymentsPage() {
 
   // Filter logic
   const filteredPayments = allPayments.filter(row => {
-    const searchMatch = 
+    const searchMatch =
       row.partyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (row.notes || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       row.paymentMode.toLowerCase().includes(searchTerm.toLowerCase());
@@ -99,8 +99,8 @@ export default function PaymentsPage() {
   };
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 animate-fade-in" style={{ maxWidth: '1400px', margin: '0 auto' }}>
-      
+    <div className="p-3 sm:p-4 md:p-6 lg:p-8 animate-fade-in" style={{ maxWidth: '1400px', margin: '0 auto' }}>
+
       {/* Title */}
       <div style={{ marginBottom: '24px' }}>
         <h1 style={{ color: 'var(--foreground)', fontSize: '22px', fontWeight: 800, letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -177,20 +177,20 @@ export default function PaymentsPage() {
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-4 pt-2 border-t border-[var(--border)] items-center">
+        <div className="flex flex-wrap gap-3 pt-2 border-t border-[var(--border)] items-center">
           <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Timeframe:</span>
-          
-          <div className="flex border border-[var(--border)]">
+
+          <div className="flex border border-[var(--border)] overflow-hidden rounded-sm">
             {[
               { id: 'all', label: 'All Time' },
               { id: 'today', label: 'Today' },
-              { id: 'this_month', label: 'This Month' },
-              { id: 'last_30_days', label: 'Last 30 Days' }
+              { id: 'this_month', label: 'Month' },
+              { id: 'last_30_days', label: '30 Days' }
             ].map(range => (
               <button
                 key={range.id}
                 onClick={() => setDateRange(range.id)}
-                className="px-4 py-1.5 text-xs font-semibold"
+                className="px-3 py-1.5 text-xs font-semibold"
                 style={{
                   borderRadius: 0,
                   border: 'none',
@@ -205,7 +205,7 @@ export default function PaymentsPage() {
           </div>
 
           <span className="ml-auto text-xs text-slate-500 font-semibold">
-            Showing {filteredPayments.length} payment entries
+            {filteredPayments.length} payments
           </span>
         </div>
       </div>
@@ -220,21 +220,21 @@ export default function PaymentsPage() {
           <table className="w-full text-left border-collapse" style={{ minWidth: '700px' }}>
             <thead>
               <tr style={{ background: '#0B1A30', color: '#ffffff' }}>
-                <th className="p-3 text-xs font-bold uppercase tracking-wider">Date</th>
-                <th className="p-3 text-xs font-bold uppercase tracking-wider">Party Name</th>
-                <th className="p-3 text-xs font-bold uppercase tracking-wider text-right">Amount Received</th>
-                <th className="p-3 text-xs font-bold uppercase tracking-wider">Payment Mode</th>
-                <th className="p-3 text-xs font-bold uppercase tracking-wider">Notes/Remarks</th>
+                <th className="p-3 text-xs font-bold uppercase tracking-wider" style={{ borderRight: '1px solid rgba(255,255,255,0.1)' }}>Date</th>
+                <th className="p-3 text-xs font-bold uppercase tracking-wider" style={{ borderRight: '1px solid rgba(255,255,255,0.1)' }}>Party Name</th>
+                <th className="p-3 text-xs font-bold uppercase tracking-wider text-right" style={{ borderRight: '1px solid rgba(255,255,255,0.1)' }}>Amount</th>
+                <th className="p-3 text-xs font-bold uppercase tracking-wider" style={{ borderRight: '1px solid rgba(255,255,255,0.1)' }}>Mode</th>
+                <th className="p-3 text-xs font-bold uppercase tracking-wider" style={{ borderRight: '1px solid rgba(255,255,255,0.1)' }}>Notes</th>
                 <th className="p-3 text-xs font-bold uppercase tracking-wider text-center">Action</th>
               </tr>
             </thead>
             <tbody>
               {filteredPayments.map((row) => (
                 <tr key={row.id} className="border-b border-[var(--border)] hover:bg-slate-50 transition-colors">
-                  <td className="p-3 text-xs font-semibold text-slate-700 whitespace-nowrap">
+                  <td className="p-3 text-xs font-semibold text-slate-700 whitespace-nowrap" style={{ borderRight: '1px solid var(--border)' }}>
                     {dayjs(row.date).format('DD MMM YYYY')}
                   </td>
-                  <td className="p-3 text-xs font-bold text-slate-900">
+                  <td className="p-3 text-xs font-bold text-slate-900" style={{ borderRight: '1px solid var(--border)' }}>
                     <button
                       onClick={() => navigate(`/parties/${row.partyId}`)}
                       className="hover:text-blue-600 transition-colors text-left"
@@ -242,15 +242,15 @@ export default function PaymentsPage() {
                       {row.partyName}
                     </button>
                   </td>
-                  <td className="p-3 text-xs font-black text-right text-green-600">
+                  <td className="p-3 text-xs font-black text-right text-green-600" style={{ borderRight: '1px solid var(--border)' }}>
                     {formatCurrency(row.paid || 0)}
                   </td>
-                  <td className="p-3 text-xs">
+                  <td className="p-3 text-xs" style={{ borderRight: '1px solid var(--border)' }}>
                     <span className="px-2.5 py-0.5 bg-green-50 text-green-700 text-[10px] font-bold uppercase border border-green-200">
                       {row.paymentMode || 'CASH'}
                     </span>
                   </td>
-                  <td className="p-3 text-xs text-slate-500">
+                  <td className="p-3 text-xs text-slate-500" style={{ borderRight: '1px solid var(--border)' }}>
                     {row.notes || '-'}
                   </td>
                   <td className="p-3 text-center">
